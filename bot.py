@@ -18,7 +18,10 @@ async def start(message: Message):
 
 @dp.message()
 async def echo(message: Message):
-    await message.answer(message.text)
+    if message.text is None:
+        await message.answer("Пожалуйста, отправьте текстовое сообщение.")
+    else:
+        await message.answer(message.text)
 
 
 async def main():
