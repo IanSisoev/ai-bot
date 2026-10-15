@@ -7,6 +7,18 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 from gigachat import GigaChat
 
+with open("knowledge.md", encoding="utf-8") as f:
+    KNOWLEDGE = f.read()
+
+SYSTEM_PROMPT = f"""Ты бот поддержки интернет-магазина электроники «Вольт».
+Отвечай коротко и вежливо.
+Отвечай, только если ответ прямо написан в базе знаний ниже.
+Не делай выводов о том, чего в базе нет.
+Если прямого ответа нет, ответь ровно так: «У меня нет такой информации, уточните, пожалуйста, у оператора».
+
+База знаний:
+{KNOWLEDGE}"""
+
 load_dotenv()
 bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher()
@@ -27,7 +39,12 @@ async def echo(message: Message):
     if message.text is None:
         await message.answer("Пожалуйста, отправьте текстовое сообщение.")
     else:
-        response = await giga.achat(message.text)
+        response = await giga.achat({
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": message.text},
+            ]
+        })
         await message.answer(response.choices[0].message.content)
 
 
