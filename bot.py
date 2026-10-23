@@ -7,19 +7,24 @@ from aiogram.types import Message
 from dotenv import load_dotenv
 from gigachat import GigaChat
 
-with open("knowledge.md", encoding="utf-8") as f:
+
+load_dotenv()
+
+KNOWLEDGE_FILE = os.getenv("KNOWLEDGE_FILE", "knowledge.example.md")
+with open(KNOWLEDGE_FILE, encoding="utf-8") as f:
     KNOWLEDGE = f.read()
 
-SYSTEM_PROMPT = f"""Ты бот поддержки интернет-магазина электроники «Вольт».
-Отвечай коротко и вежливо.
-Отвечай, только если ответ прямо написан в базе знаний ниже.
+print(f"База знаний: {KNOWLEDGE_FILE}, {len(KNOWLEDGE)} символов")
+
+SYSTEM_PROMPT = f"""Ты ИИ-администратор вейк-парка. Название, цены и правила парка указаны в базе знаний ниже.
+Отвечай коротко и дружелюбно.
+Отвечай, только если ответ прямо написан в базе знаний.
 Не делай выводов о том, чего в базе нет.
-Если прямого ответа нет, ответь ровно так: «У меня нет такой информации, уточните, пожалуйста, у оператора».
+Если прямого ответа нет, ответь ровно так: «У меня нет такой информации, уточните, пожалуйста, у администратора парка».
 
 База знаний:
 {KNOWLEDGE}"""
 
-load_dotenv()
 bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher()
 giga = GigaChat(
@@ -31,7 +36,7 @@ giga = GigaChat(
 
 @dp.message(CommandStart())
 async def start(message: Message):
-    await message.answer("Привет! Я бот поддержки.")
+    await message.answer("Привет! Я ИИ-администратор вейк-парка. Спросите про цены, обучение или правила.")
 
 
 @dp.message()
