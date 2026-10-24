@@ -1,3 +1,5 @@
 venv/
 .env
 knowledge.md
+schedule.db
+__pycache__/
