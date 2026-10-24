@@ -18,6 +18,7 @@ print(f"База знаний: {KNOWLEDGE_FILE}, {len(KNOWLEDGE)} символо
 
 SYSTEM_PROMPT = f"""Ты ИИ-администратор вейк-парка. Название, цены и правила парка указаны в базе знаний ниже.
 Отвечай коротко и дружелюбно.
+Ты бот, а не человек. Если спрашивают, кто ты, отвечай, что ты ИИ-администратор.
 Отвечай, только если ответ прямо написан в базе знаний.
 Не делай выводов о том, чего в базе нет.
 Если прямого ответа нет, ответь ровно так: «У меня нет такой информации, уточните, пожалуйста, у администратора парка».
@@ -33,24 +34,34 @@ giga = GigaChat(
     verify_ssl_certs=False,
 )
 
+HISTORY_LIMIT = 10
+history: dict[int, list[dict]] = {}
+
 
 @dp.message(CommandStart())
 async def start(message: Message):
+    history.pop(message.chat.id, None)
     await message.answer("Привет! Я ИИ-администратор вейк-парка. Спросите про цены, обучение или правила.")
 
 
 @dp.message()
-async def echo(message: Message):
+async def answer(message: Message):
     if message.text is None:
         await message.answer("Пожалуйста, отправьте текстовое сообщение.")
-    else:
-        response = await giga.achat({
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": message.text},
-            ]
-        })
-        await message.answer(response.choices[0].message.content)
+        return
+
+    chat_history = history.get(message.chat.id, [])
+    user_message = {"role": "user", "content": message.text}
+
+    response = await giga.achat({
+        "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + chat_history + [user_message]
+    })
+    reply = response.choices[0].message.content
+
+    chat_history = chat_history + [user_message, {"role": "assistant", "content": reply}]
+    history[message.chat.id] = chat_history[-HISTORY_LIMIT:]
+
+    await message.answer(reply)
 
 
 async def main():
