@@ -3,3 +3,4 @@ venv/
 knowledge.md
 schedule.db
 __pycache__/
+*.db

@@ -1,13 +1,13 @@
 import sqlite3
 from datetime import date, datetime, timedelta
 
+from db import db
+
 OPEN_HOUR = 10
 CLOSE_HOUR = 21
 SET_MINUTES = 10
 DAYS_AHEAD = 14
 
-db = sqlite3.connect("schedule.db")
-db.row_factory = sqlite3.Row
 db.execute("""
     CREATE TABLE IF NOT EXISTS bookings (
         id INTEGER PRIMARY KEY,
