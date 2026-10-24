@@ -26,7 +26,8 @@ SYSTEM_PROMPT = f"""Ты ИИ-администратор вейк-парка. Н
 Свободное время и записи клиента узнавай только через функции, никогда не придумывай их.
 Не делай выводов о том, чего в базе нет.
 Если прямого ответа нет, ответь ровно так: «У меня нет такой информации, уточните, пожалуйста, у администратора парка».
-Запись, отмена и перенос выполняются, только когда клиент нажмёт кнопку «Подтвердить». Когда вызываешь такую функцию, назови клиенту день и время и попроси нажать кнопку.
+Запись, отмена и перенос выполняются, только когда клиент нажмёт кнопку «Подтвердить» под сообщением.
+Даты клиенту называй словами, например «25 октября», а не 2026-10-25.
 
 База знаний:
 {KNOWLEDGE}"""
@@ -174,9 +175,10 @@ def run_function(name: str, args: dict, user: User) -> dict:
             booking = find_booking(mine, iso(args["day"]), str(args["time"]))
             if booking is None:
                 return {"ok": False, "error": "У клиента нет записи на это время", "bookings": as_slots(mine)}
-            action = {"booking_id": booking["id"]}
+            action = {"booking_id": booking["id"], "day": booking["day"], "time": booking["time"]}
             check = {"ok": True}
             if name == "move":
+                action["old_day"], action["old_time"] = booking["day"], booking["time"]
                 action["day"], action["time"] = iso(args["new_day"]), str(args["new_time"])
                 check = check_new_set(mine, action["day"], action["time"])
         else:
@@ -188,6 +190,19 @@ def run_function(name: str, args: dict, user: User) -> dict:
         return check
     pending[user.id] = (name, action)
     return {"ok": True, "status": "Ждёт, когда клиент нажмёт кнопку «Подтвердить»"}
+
+
+def short_day(day: str) -> str:
+    return date.fromisoformat(day).strftime("%d.%m")
+
+
+def confirmation_text(name: str, action: dict) -> str:
+    if name == "book":
+        return f"Записать вас на {short_day(action['day'])} в {action['time']}?"
+    if name == "cancel":
+        return f"Отменить запись на {short_day(action['day'])} в {action['time']}?"
+    return (f"Перенести запись с {short_day(action['old_day'])} {action['old_time']} "
+            f"на {short_day(action['day'])} {action['time']}?")
 
 
 def execute(name: str, action: dict, user: User) -> str:
@@ -202,10 +217,9 @@ def execute(name: str, action: dict, user: User) -> str:
         return f"Не получилось: {result['error']}"
     if name == "cancel":
         return "Готово, запись отменена."
-    day = date.fromisoformat(result["day"]).strftime("%d.%m")
     if name == "book":
-        return f"Готово, вы записаны на {day} в {result['time']}."
-    return f"Готово, запись перенесена на {day} в {result['time']}."
+        return f"Готово, вы записаны на {short_day(result['day'])} в {result['time']}."
+    return f"Готово, запись перенесена на {short_day(result['day'])} в {result['time']}."
 
 
 async def ask_gigachat(messages: list[dict], user: User) -> str:
@@ -223,6 +237,8 @@ async def ask_gigachat(messages: list[dict], user: User) -> str:
         arguments = call.arguments or {}
         result = run_function(call.name, arguments, user)
         print(f"Функция {call.name}({arguments}) -> {str(result)[:150]}")
+        if user.id in pending:
+            return confirmation_text(*pending[user.id])
 
         messages.append({
             "role": "assistant",
